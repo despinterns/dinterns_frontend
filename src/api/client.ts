@@ -18,7 +18,19 @@ api.interceptors.response.use(response=>response,error=>{
   return Promise.reject(error);
 });
 export function errorText(error:unknown){
-  if(axios.isAxiosError(error))return error.response?.data?.error?.message||(error.response?.status===429?'Too many requests. Please try again in a minute.':'Could not connect. Check your connection and try again.');
+  if(axios.isAxiosError(error)){
+    const {response}=error;
+    if(response?.status===429){
+      const seconds=Number(response.data?.error?.retryAfterSeconds??response.headers['retry-after']);
+      if(Number.isFinite(seconds)&&seconds>0){
+        const wait=seconds>=60?Math.ceil(seconds/60):Math.ceil(seconds);
+        const unit=seconds>=60?'minute':'second';
+        return `Too many requests. Try again in ${wait} ${unit}${wait===1?'':'s'}.`;
+      }
+      return response.data?.error?.message??'Too many requests. Please try again later.';
+    }
+    return response?.data?.error?.message||'Could not connect. Check your connection and try again.';
+  }
   return error instanceof Error?error.message:'Something went wrong. Please try again.';
 }
 export async function get<T>(path:string,signal?:AbortSignal){return (await api.get<{data:T}>(path,{signal})).data.data;}

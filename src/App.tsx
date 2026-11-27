@@ -22,6 +22,7 @@ const StudentSupport=lazy(()=>import('./components/Inbox').then(module=>({defaul
 const AdminOverview=lazy(()=>import('./pages/admin/Admin').then(module=>({default:module.AdminOverview})));
 const AdminList=lazy(()=>import('./pages/admin/Admin').then(module=>({default:module.AdminList})));
 const AdminSettings=lazy(()=>import('./pages/admin/Admin').then(module=>({default:module.AdminSettings})));
+const AdminPromos=lazy(()=>import('./pages/admin/Promos'));
 const AdminExaminations=lazy(()=>import('./pages/admin/Examinations'));
 const SupportMails=lazy(()=>import('./pages/admin/SupportMails'));
 const CoordinatorApplication=lazy(()=>import('./pages/Coordinators').then(module=>({default:module.CoordinatorApplication})));
@@ -71,6 +72,7 @@ export default function App(){
       <Route index element={<Navigate to="overview" replace/>}/><Route path="overview" element={<AdminOverview/>}/>
       <Route path="examinations" element={<AdminExaminations/>}/>
       <Route path="support-mails" element={<SupportMails/>}/>
+      <Route path="promos" element={<AdminPromos/>}/>
       {sections.map(section=><Route key={section} path={section} element={<AdminList key={section} section={section}/>}/>)}
       <Route path="messages" element={<Navigate to="/admin/notifications" replace/>}/><Route path="notifications" element={<SendNotifications/>}/><Route path="settings" element={<AdminSettings/>}/><Route path="coordinators" element={<AdminCoordinators/>}/>
     </Route>

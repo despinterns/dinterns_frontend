@@ -9,6 +9,7 @@ import {day,durationLabel,rupees,type Row,type SiteSettings} from '../../types';
 import {rules} from '../public/Resources';
 import {openCheckout,type CheckoutOrder} from '../../api/checkout';
 import {PayuConfirmation,usePayuConfirmation} from '../../components/PayuConfirmation';
+import {CertificateCheckout} from '../../components/CertificateCheckout';
 
 function Step({title,state,children}:{title:string;state:'done'|'current'|'locked';children?:ReactNode}){
   return <li className={'timeline-step '+state}><span className="step-symbol">{state==='done'?<Check size={17}/>:state==='current'?<Clock3 size={17}/>:<LockKeyhole size={15}/>}</span><div><h3>{title}</h3>{children}</div></li>;
@@ -63,10 +64,14 @@ export default function Track(){
   function document(type:keyof typeof internshipDocumentNames,preview=false){
     return perform(type+(preview?'preview':''),()=>openPdf(base+'/'+type,internshipDocumentNames[type],preview));
   }
-  function pay(){
+  function pay(promoCode?:string){
     if(!row)return;
     void perform('payment',async()=>{
-      const order=await request<CheckoutOrder&{_id:string;status:string}>('/payments/create-order','POST',{enrollmentId:row._id});
+      const order=await request<CheckoutOrder&{_id:string;status:string}>('/payments/create-order','POST',{enrollmentId:row._id,promoCode});
+      if(order.status==='paid'){
+        setStatus('Certificate fee covered. Submit your internship review to access the certificate.');
+        return;
+      }
       if(order.status==='pending'&&row.payment?.status==='pending')setStatus('Checking existing payment order.');
       await checkout(order,false);
     });
@@ -142,13 +147,15 @@ export default function Track(){
       </Step>
       <Step title="Certificate Unlocking Payment" state={paid?'done':canPay?'current':'locked'}>
         {(canPay||paid||row.certificatePaymentStatus==='refunded')&&<><p>{paid?'Verified payment: '+rupees(row.payment?.amountInPaise??9900):row.certificatePaymentStatus==='refunded'?'The certificate payment was refunded.':'Congratulations! Your internship projects have been successfully approved.'}</p>
-        {canPay&&<><p>Certificate Unlocking Fee: {rupees(settings.data?.fee??9900)}</p>
+        {canPay&&<>
           {settings.isPending&&<Loader text="Checking payment availability…"/>}{settings.error&&<Fault error={settings.error} retry={settings.refetch}/>}
-          {settings.data&&!settings.data.paymentsConfigured&&<div className="info">Certificate payments are unavailable until the payment gateway is configured.</div>}
-          {settings.data?.paymentsConfigured&&<div className="actions"><Button disabled={Boolean(busy)} busy={busy==='payment'} onClick={pay}>Unlock Certificate — {rupees(settings.data.fee)}</Button>{row.payment?._id&&<Button variant="secondary" disabled={Boolean(busy)} busy={busy==='check'} onClick={()=>perform('check',async()=>{
+          {settings.data&&<CertificateCheckout key={row._id} product="internship" referenceId={row._id}
+            amount={row.payment?.amountInPaise??settings.data.fee} canPay={settings.data.paymentsConfigured}
+            canApplyPromo={Boolean(settings.data.promoCodesEnabled)} disabled={Boolean(busy)} busy={busy==='payment'} onUnlock={pay}/>}
+          {row.payment?._id&&<Button variant="secondary" disabled={Boolean(busy)} busy={busy==='check'} onClick={()=>perform('check',async()=>{
             const result=await request<Row>('/payments/'+row.payment._id+'/reconcile');
             setStatus(result.status==='paid'?'Payment verified.':('Payment status: '+result.status+'.'));
-          })}>Check Payment Status</Button>}</div>}</>}</>}
+          })}>Check Payment Status</Button>}</>}</>}
       </Step>
       <Step title="Student Review" state={row.reviewSubmitted||row.reviewAssistance?'done':paid?'current':'locked'}>
         {row.internshipStatus==='Review Pending'&&<><p>Tell us about your experience. Every rating is eligible, and publication is optional.</p><div className="actions"><Button onClick={()=>show('review')}>Submit Review</Button><Link className="btn secondary" to={'/student/support?new=1&enrollment='+row._id}>Get Review Assistance</Link></div></>}

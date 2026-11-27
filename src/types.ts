@@ -11,7 +11,7 @@ export interface Page<T=Row>{items:T[];total:number;page:number;limit:number;}
 export interface Notice {_id:string;title:string;body:string;href?:string;readAt?:string;createdAt:string}
 export interface PublicReview {_id:string;displayName:string;domainName:string;rating:number;text:string;createdAt:string;verified:boolean}
 export interface ReviewPage extends Page<PublicReview>{average:number;visible:boolean;}
-export interface SiteSettings {rulesVersion:string;policyVersion:string;fee:number;examCertificateFee?:number;paymentsConfigured:boolean;reviewTime:string;}
+export interface SiteSettings {rulesVersion:string;policyVersion:string;fee:number;examCertificateFee?:number;paymentsConfigured:boolean;promoCodesEnabled?:boolean;reviewTime:string;}
 export const durationLabel=(row:Row)=>row.durationMonths===1||!row.durationWeeks?'1 month':row.durationWeeks+' weeks';
 export const day=(value?:string)=>value?new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeZone:'UTC'}).format(new Date(value)):'—';
 export const initials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(part=>part[0]).join('').toUpperCase();

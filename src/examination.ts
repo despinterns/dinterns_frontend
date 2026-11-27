@@ -9,7 +9,7 @@ export type ActiveAttempt={
   _id:string;examId:string;examName:string;active:true;deadline:string;serverTime:string;
   questions:Omit<ExamQuestion,'correctIndex'>[];answers:Record<number,number>;
 };
-export type ExamProgress={attempt:{_id:string;active:true}|ExamResult|null;passed:boolean;certificateId?:string};
+export type ExamProgress={attempt:{_id:string;active:true}|ExamResult|null;passed:boolean;certificateId?:string;payment?:{amountInPaise:number}};
 
 export function parseExamQuestions(text:string):ExamQuestion[]{
   const data=JSON.parse(text.replace(/^\uFEFF/,''));

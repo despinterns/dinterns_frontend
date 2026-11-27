@@ -163,6 +163,8 @@ type DetailSection='applications'|'submissions'|'users'|'payments'|'certificates
 function RecordDetail({section,id,close}:{section:DetailSection;id:string;close:()=>void}){
   const path='/admin'+sections[section].path+'/'+id;
   const q=useData<Row>(path),action=useAction(['/admin'+sections[section].path,'/admin/dashboard']);
+  const deletion=useAction(['/admin','/reviews/public']);
+  const [confirmEmail,setConfirmEmail]=useState('');
   const [mode,setMode]=useState(''),[decision,setDecision]=useState(''),[error,setError]=useState<unknown>(null),[pdfBusy,setPdfBusy]=useState(false);
   const row=q.data;
   function doAction(sub:string,body?:unknown,method='POST'){action.mutate({path:path+sub,method,body},{onSuccess:()=>setMode('')});}
@@ -199,8 +201,19 @@ function RecordDetail({section,id,close}:{section:DetailSection;id:string;close:
     <details><summary>Submission history</summary><ul>{row.history?.map((item:Row)=><li key={item._id}>Version {item.submissionVersion} · {day(item.createdAt)} · {item.status}{item.feedback?' · '+item.feedback:''}</li>)}</ul></details></>;
   }
   if(row&&section==='users')content=<><Details entries={[[ 'Full name',row.fullName],['Email',row.email],['Mobile',row.mobileNumber],['Role',row.role],['Registered',day(row.createdAt)],['Status',<Badge>{row.accountStatus}</Badge>]]}/>
-    {row.role!=='admin'&&<div className="actions"><Button variant={row.accountStatus==='active'?'danger':'primary'} onClick={()=>change('account')}>{row.accountStatus==='active'?'Suspend Account':'Restore Account'}</Button><Button variant="secondary" onClick={()=>change('message')}>Send Notification</Button></div>}
+    {row.role!=='admin'&&<div className="actions"><Button variant={row.accountStatus==='active'?'danger':'primary'} onClick={()=>change('account')}>{row.accountStatus==='active'?'Suspend Account':'Restore Account'}</Button><Button variant="secondary" onClick={()=>change('message')}>Send Notification</Button>
+      <Button variant="danger" disabled={deletion.isPending} onClick={()=>{deletion.reset();setConfirmEmail('');change('delete-account');}}>Delete Account</Button></div>}
     {mode==='account'&&<div className="info">Confirm switching this account to {row.accountStatus==='active'?'suspended':'active'}.<Button variant="danger" busy={action.isPending} onClick={()=>doAction('/status',{accountStatus:row.accountStatus==='active'?'suspended':'active'},'PATCH')}>Confirm</Button></div>}
+    {mode==='delete-account'&&<form className="form-stack" onSubmit={event=>{
+      event.preventDefault();
+      deletion.mutate({path,method:'DELETE',body:{confirmEmail}},{onSuccess:close});
+    }}>
+      <p>This permanently deletes the account and its DInterns records, including payments, certificates and submissions.</p>
+      <Field label="Type the account email to confirm"><input required type="email" autoComplete="off" value={confirmEmail} onChange={event=>setConfirmEmail(event.target.value)}/></Field>
+      {deletion.error&&<Fault error={deletion.error}/>}
+      <div className="actions"><Button type="submit" variant="danger" busy={deletion.isPending} disabled={confirmEmail.trim().toLowerCase()!==row.email}>Permanently Delete Account</Button>
+        <Button type="button" variant="secondary" disabled={deletion.isPending} onClick={()=>change('')}>Cancel</Button></div>
+    </form>}
     <details><summary>Recent internship history</summary><ul>{row.applications.map((item:Row)=><li key={item._id}><Link to={'/admin/applications?record='+item._id}>{item.domainName} · {item.studentInternshipId}</Link></li>)}</ul></details>
     <details><summary>Recent certificate history</summary><ul>{row.issued.map((item:Row)=><li key={item._id}><Link to={'/admin/certificates?record='+item._id}>{item.certificateId} · {item.status}</Link></li>)}</ul></details>
     <details><summary>Recent payment history</summary><ul>{row.transactions.map((item:Row)=><li key={item._id}><Link to={'/admin/payments?record='+item._id}>{item.studentInternshipId} · {rupees(item.amountInPaise)} · {item.status}</Link></li>)}</ul></details></>;

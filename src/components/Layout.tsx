@@ -1,6 +1,6 @@
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {Link,NavLink,Outlet,useLocation,useNavigate,useSearchParams} from 'react-router-dom';
-import {ChevronDown,Menu,X,MapPin,Globe,LogOut,LayoutDashboard,BriefcaseBusiness,ShieldCheck,Bell,LifeBuoy,UserRound,GraduationCap,ClipboardList,FolderKanban,UsersRound,Star,CreditCard,Award,Settings,Mail} from 'lucide-react';
+import {ChevronDown,Menu,X,MapPin,Globe,LogOut,LayoutDashboard,BriefcaseBusiness,ShieldCheck,Bell,LifeBuoy,UserRound,GraduationCap,ClipboardList,FolderKanban,UsersRound,Star,CreditCard,Award,Settings,Mail,TicketPercent} from 'lucide-react';
 import {AnimatePresence,motion,useReducedMotion} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {request,siteUrl,useAccount} from '../api/client';
@@ -111,7 +111,7 @@ function Footer(){return <footer className="footer">
   <div className="container footer-bottom"><span>© {new Date().getFullYear()} DInterns. All rights reserved.</span><div><Link to="/privacy">Privacy Policy</Link><Link to="/terms">Terms &amp; Conditions</Link><Link to="/cookies">Cookies Policy</Link></div></div>
 </footer>;}
 const studentNav=[['Overview','overview',LayoutDashboard],['Joined Internships','internships',BriefcaseBusiness],['Skill Certification','/skill-certification',Award],['Verify Certificate','/verify-certificate',ShieldCheck],['Help & Support','support',LifeBuoy],['Profile','profile',UserRound]] as const;
-const adminNav=[['Overview','overview',LayoutDashboard],['Internship Applications','applications',ClipboardList],['Task Submissions','submissions',FolderKanban],['Users & Management','users',UsersRound],['Internship Domains','domains',BriefcaseBusiness],['Manage Examinations','examinations',ClipboardList],['Reviews','reviews',Star],['Support Requests','support',LifeBuoy],['Support Mails','support-mails',Mail],['Send Notifications','notifications',Bell],['Payments','payments',CreditCard],['Certificates','certificates',Award],['College Coordinators','coordinators',GraduationCap],['Settings','settings',Settings]] as const;
+const adminNav=[['Overview','overview',LayoutDashboard],['Internship Applications','applications',ClipboardList],['Task Submissions','submissions',FolderKanban],['Users & Management','users',UsersRound],['Internship Domains','domains',BriefcaseBusiness],['Manage Examinations','examinations',ClipboardList],['Reviews','reviews',Star],['Support Requests','support',LifeBuoy],['Support Mails','support-mails',Mail],['Send Notifications','notifications',Bell],['Payments','payments',CreditCard],['Promo Codes','promos',TicketPercent],['Certificates','certificates',Award],['College Coordinators','coordinators',GraduationCap],['Settings','settings',Settings]] as const;
 const coordinatorNav=[['Overview','overview',LayoutDashboard],['Student Dashboard','/student',GraduationCap],['Help & Support','/student/support',LifeBuoy]] as const;
 export function DashboardLayout({role}:{role:'student'|'coordinator'|'admin'}){
   const account=useAccount(),location=useLocation(),navigate=useNavigate();

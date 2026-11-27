@@ -6,14 +6,14 @@ import {openPdf,request,useAccount,useData} from '../../api/client';
 import {openCheckout,type CheckoutOrder} from '../../api/checkout';
 import {Badge,Button,Empty,Fault,Loader,Modal,PageHeading,Pagination,Status} from '../../components/ui';
 import {ExamCard} from '../../components/ExamCard';
+import {CertificateCheckout} from '../../components/CertificateCheckout';
 import {PayuConfirmation,usePayuConfirmation} from '../../components/PayuConfirmation';
 import type {ActiveAttempt,Exam,ExamProgress,ExamResult} from '../../examination';
-import {rupees,type Page,type SiteSettings} from '../../types';
+import type {Page,SiteSettings} from '../../types';
 
 const studentExams='/student/examinations';
 const catalogue='/skill-certification';
 const attemptLink=(id:string)=>catalogue+'/attempts/'+id;
-const fee=(amount?:number)=>rupees(amount??2900);
 type Payment=CheckoutOrder&{_id:string;status:string};
 
 function useExamActions(){
@@ -36,9 +36,9 @@ function useExamActions(){
       navigate(attemptLink(attempt._id));
     });
   }
-  function unlock(id:string){
+  function unlock(id:string,promoCode?:string){
     return run('pay:'+id,async()=>{
-      const payment=await request<Payment>('/payments/exam/order','POST',{examId:id});
+      const payment=await request<Payment>('/payments/exam/order','POST',{examId:id,promoCode});
       function paymentResult({status}:{status:string}){
         if(status==='paid')setMessage('Your examination certificate is ready.');
         else if(status==='failed')setMessage('Payment failed. You can retry in Checkout.');
@@ -63,7 +63,7 @@ function useExamActions(){
   return {busy,error,message,start,unlock,download,confirmation};
 }
 type Actions=ReturnType<typeof useExamActions>;
-function ExamButtons({examId,progress,actions,canPay,amount,start}:{examId:string;progress?:ExamProgress;actions:Actions;canPay:boolean;amount?:number;start:()=>void}){
+function ExamButtons({examId,progress,actions,canPay,canApplyPromo,amount,start}:{examId:string;progress?:ExamProgress;actions:Actions;canPay:boolean;canApplyPromo:boolean;amount?:number;start:()=>void}){
   const attempt=progress?.attempt;
   const certificateId=progress?.certificateId;
   return <div className="actions">
@@ -73,8 +73,9 @@ function ExamButtons({examId,progress,actions,canPay,amount,start}:{examId:strin
     {certificateId?<>
       <Button variant="secondary" disabled={Boolean(actions.busy)} busy={actions.busy==='download:'+examId} onClick={()=>actions.download(examId)}><Download size={17}/>Download Certificate</Button>
       <Link className="btn ghost" to={'/verify-certificate?id='+encodeURIComponent(certificateId)}>Verify Certificate</Link>
-    </>:progress?.passed&&(canPay?<Button disabled={Boolean(actions.busy)} busy={actions.busy==='pay:'+examId} onClick={()=>actions.unlock(examId)}>Unlock Certificate · {fee(amount)}</Button>:
-      <p>Certificate checkout is currently unavailable.</p>)}
+    </>:progress?.passed&&<CertificateCheckout key={examId} product="skill" referenceId={examId}
+      amount={progress.payment?.amountInPaise??amount??2900} canPay={canPay} canApplyPromo={canApplyPromo} disabled={Boolean(actions.busy)}
+      busy={actions.busy==='pay:'+examId} onUnlock={code=>void actions.unlock(examId,code)}/>}
   </div>;
 }
 function ResultScore({result}:{result:ExamResult}){
@@ -111,7 +112,7 @@ export default function SkillCertification(){
         return <ExamCard key={exam._id} exam={exam}>
             {state?.attempt?.active===false&&<ResultScore result={state.attempt}/>}
             {canTake&&progress.isPending?<Loader text="Checking exam progress…"/>:canTake?
-              <ExamButtons examId={exam._id} progress={state} actions={actions} canPay={Boolean(settings.data?.paymentsConfigured)}
+              <ExamButtons examId={exam._id} progress={state} actions={actions} canPay={Boolean(settings.data?.paymentsConfigured)} canApplyPromo={Boolean(settings.data?.promoCodesEnabled)}
                 amount={settings.data?.examCertificateFee} start={()=>setSelected(exam)}/>:
               account.data===null?<Link className="btn primary" to={'/login?next='+encodeURIComponent(catalogue)}>Sign in to take exam</Link>:null}
         </ExamCard>;
@@ -207,7 +208,7 @@ export function ExaminationAttempt(){
         <Status>Payment verified. Your skill certificate is ready to download.</Status>:
         <div className="info" role="status">Check your certificate status below.</div>)}
       <ExamButtons examId={record.examId} progress={progress.data?.[record.examId]??{attempt:record,passed:record.passed}}
-        actions={actions} canPay={Boolean(settings.data?.paymentsConfigured)} amount={settings.data?.examCertificateFee}
+        actions={actions} canPay={Boolean(settings.data?.paymentsConfigured)} canApplyPromo={Boolean(settings.data?.promoCodesEnabled)} amount={settings.data?.examCertificateFee}
         start={()=>void actions.start(record.examId)}/>
     </section>}
   </div>;

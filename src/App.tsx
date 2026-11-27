@@ -2,6 +2,7 @@ import {lazy,Suspense,useEffect,useState} from 'react';
 import {BrowserRouter,Link,Navigate,Route,Routes,useLocation} from 'react-router-dom';
 import {PublicLayout,DashboardLayout} from './components/Layout';
 import {Loader,ToastRegion} from './components/ui';
+import {pageTitle} from './seo';
 import type {Section} from './pages/admin/Admin';
 const Home=lazy(()=>import('./pages/public/Home'));
 const Internships=lazy(()=>import('./pages/public/Internships'));
@@ -35,6 +36,7 @@ function ContactRedirect(){
 function RouteEffects(){
   const {pathname,hash}=useLocation();
   const [online,setOnline]=useState(navigator.onLine);
+  useEffect(()=>{document.title=pageTitle(pathname);},[pathname]);
   useEffect(()=>{
     if(hash){const target=()=>document.getElementById(hash.slice(1))?.scrollIntoView();const timer=setTimeout(target,170);return()=>clearTimeout(timer);}
     window.scrollTo(0,0);

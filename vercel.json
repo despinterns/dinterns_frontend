@@ -8,8 +8,16 @@
       "destination": "https://dinterns-backend.onrender.com/api/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/:page(internships|skill-certification|verify-certificate|documents|contact|about|college-coordinator|guidelines|terms|privacy|cookies|refunds)",
+      "destination": "/_pages/:page.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/_pages/spa.html"
     }
   ],
   "headers": [

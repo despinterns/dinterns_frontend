@@ -1,7 +1,8 @@
 import axios from 'axios';
 import {useQuery,useMutation,useQueryClient,type UseQueryOptions} from '@tanstack/react-query';
 import type {Account} from '../types';
-export const apiBase=import.meta.env.VITE_API_BASE_URL||'http://localhost:5000/api';
+const localApiBase=import.meta.env.DEV?'http://localhost:5000/api':'/api';
+export const apiBase=import.meta.env.MODE==='vercel'?'/api':(import.meta.env.VITE_API_BASE_URL||localApiBase);
 export const siteUrl=import.meta.env.VITE_SITE_URL||'https://dinterns.online';
 export const internshipDocumentNames={
   'offer-letter':'DInterns-Offer-Letter.pdf',

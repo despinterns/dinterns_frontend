@@ -41,11 +41,18 @@ function Details({entries}:{entries:[string,ReactNode][]}){
   return <dl className="details">{entries.map(([label,val])=><div key={label}><dt>{label}</dt><dd>{val??'—'}</dd></div>)}</dl>;
 }
 export function AdminOverview(){
-  const q=useData<{stats:{label:string;value:number}[];charts:Record<string,{_id:string;value:number}[]>}>('/admin/dashboard',true,30000);
+  const [testMode,setTestMode]=useState(false);
+  const paymentMode=testMode?'test':'live';
+  const q=useData<{stats:{label:string;value:number}[];charts:Record<string,{_id:string;value:number}[]>}>('/admin/dashboard?paymentMode='+paymentMode,true,30000);
   return <><PageHeading title="Admin Overview">Monitor programme activity, payments and support requests.</PageHeading>
+    <div className="actions inbox-actions">
+      <Field label="Payment reporting mode"><select value={paymentMode} onChange={event=>setTestMode(event.target.value==='test')}>
+        <option value="live">Live payments</option><option value="test">Test payments</option>
+      </select></Field>
+    </div>
     {q.isPending&&<Loader/>}{q.error&&<Fault error={q.error} retry={q.refetch}/>}
-    {q.data&&<><div className="stat-grid">{q.data.stats.map(({label,value})=><article className="panel stat" key={label}><span className="icon-tile"><ChartNoAxesColumnIncreasing size={19}/></span><strong>{label==='Certificate revenue'?rupees(value*100):Number(value).toLocaleString('en-IN',{maximumFractionDigits:1})}</strong><span>{label}</span></article>)}</div>
-      <div className="two-grid chart-grid">{Object.entries(q.data.charts).map(([title,items])=><section className="panel chart" key={title}><h2>{title}</h2>{items.length?<div className="chart-series">{items.map(item=><div className="bar-row" key={item._id}><span>{item._id}</span><div className="bar-track"><div className="bar-fill" style={{width:(100*item.value/Math.max(1,...items.map(row=>row.value)))+'%'}}/></div><strong>{item.value.toLocaleString('en-IN')}</strong></div>)}</div>:<p>No records yet.</p>}</section>)}</div>
+    {q.data&&<><div className="stat-grid">{q.data.stats.map(({label,value})=><article className="panel stat" key={label}><span className="icon-tile"><ChartNoAxesColumnIncreasing size={19}/></span><strong>{label==='Certificate revenue'?rupees(Math.round(value*100)):Number(value).toLocaleString('en-IN',{maximumFractionDigits:1})}</strong><span>{testMode&&label==='Certificate revenue'?'Test payment value':label}</span></article>)}</div>
+      <div className="two-grid chart-grid">{Object.entries(q.data.charts).map(([title,items])=><section className="panel chart" key={title}><h2>{testMode&&title==='Monthly revenue (₹)'?'Monthly test payments (₹)':title}</h2>{items.length?<div className="chart-series">{items.map(item=><div className="bar-row" key={item._id}><span>{item._id}</span><div className="bar-track"><div className="bar-fill" style={{width:(100*item.value/Math.max(1,...items.map(row=>row.value)))+'%'}}/></div><strong>{item.value.toLocaleString('en-IN')}</strong></div>)}</div>:<p>No records yet.</p>}</section>)}</div>
     </>}
   </>;
 }

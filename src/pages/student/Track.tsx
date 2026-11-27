@@ -1,5 +1,5 @@
 import {useState,type ReactNode} from 'react';
-import {Link,useParams} from 'react-router-dom';
+import {Link,useParams,useSearchParams} from 'react-router-dom';
 import {flushSync} from 'react-dom';
 import {useQueryClient} from '@tanstack/react-query';
 import {BadgeCheck,Check,Clock3,Download,Eye,LockKeyhole,Copy} from 'lucide-react';
@@ -8,6 +8,7 @@ import {Badge,Button,Fault,Field,formData,Loader,Modal,PageHeading,Status,toast,
 import {day,durationLabel,rupees,type Row,type SiteSettings} from '../../types';
 import {rules} from '../public/Resources';
 import {openCheckout,type CheckoutOrder} from '../../api/checkout';
+import {PayuConfirmation,usePayuConfirmation} from '../../components/PayuConfirmation';
 
 function Step({title,state,children}:{title:string;state:'done'|'current'|'locked';children?:ReactNode}){
   return <li className={'timeline-step '+state}><span className="step-symbol">{state==='done'?<Check size={17}/>:state==='current'?<Clock3 size={17}/>:<LockKeyhole size={15}/>}</span><div><h3>{title}</h3>{children}</div></li>;
@@ -32,6 +33,8 @@ function CertificateDateFields({from,to,readOnly}:{from:string;to:string;readOnl
 }
 export default function Track(){
   const {enrollmentId}=useParams();
+  const [params]=useSearchParams();
+  const returnedDateEdit=params.get('paymentReturn')==='payu'&&params.get('paymentFlow')==='date-edit';
   const base='/student/enrollments/'+enrollmentId;
   const query=useData<Row>(base,true,query=>query.state.data?.internshipStatus==='Submission Under Review'?5000:20000),settings=useData<SiteSettings>('/settings/public');
   const cache=useQueryClient();
@@ -39,13 +42,15 @@ export default function Track(){
   const [modal,setModal]=useState<'rules'|'submit'|'review'|'certificateEdit'|null>(null),[taskName,setTaskName]=useState(''),[submissionError,setSubmissionError]=useState('');
   const [busy,setBusy]=useState(''),[error,setError]=useState<unknown>(null),[status,setStatus]=useState('');
   const row=query.data;
-  const datePayment=useData<Row|null>('/payments/date-edit/'+enrollmentId,modal==='certificateEdit'&&row?.certificate?.status==='issued',5000);
+  const datePayment=useData<Row|null>('/payments/date-edit/'+enrollmentId,(modal==='certificateEdit'||returnedDateEdit)&&row?.certificate?.status==='issued',
+    query=>['paid','refunded','failed','needs_review'].includes(query.state.data?.status??'')?false:5000);
   const pendingDateEdit=datePayment.data&&!['paid','refunded'].includes(datePayment.data.status)?datePayment.data:null;
   const [certificateEditError,setCertificateEditError]=useState<unknown>(null);
   const [dateEditing,setDateEditing]=useState(false);
   function refresh(){
     void cache.invalidateQueries({predicate:({queryKey})=>String(queryKey[0]).startsWith('/student')||queryKey[0]==='/payments/date-edit/'+enrollmentId});
   }
+  const payuConfirmation=usePayuConfirmation(refresh);
   function saved(){
     toast(modal==='rules'?'Guidelines accepted.':modal==='submit'?'Projects submitted for review.':'Review submitted.');
     setModal(null);refresh();
@@ -67,12 +72,23 @@ export default function Track(){
     });
   }
   async function checkout(order:CheckoutOrder&{_id:string},dateEdit:boolean){
-    await openCheckout(order,dateEdit?'Certificate date correction':'Completion certificate unlocking',async payment=>{
-      const result=await request<Row>(dateEdit?'/payments/date-edit/verify':'/payments/verify','POST',{paymentId:order._id,...payment});
+    const path=dateEdit?'/payments/date-edit':'/payments';
+    function paymentResult(result:Row){
       if(dateEdit)dateEditStatus(result);
-      else setStatus(result.status==='paid'?'Payment verified. You can now submit your review.':'Payment is pending verification.');
-    },()=>setStatus('Checkout closed. Check the payment status if you completed payment in the gateway.'),
-    ()=>setStatus('Payment failed. You can retry in checkout or check the existing order.'));
+      else if(result.status==='paid')setStatus('Payment verified. You can now submit your review.');
+      else if(result.status==='failed')setStatus('Payment failed. You can retry in checkout.');
+      else setStatus('Payment is pending verification.');
+    }
+    await openCheckout(order,dateEdit?'Certificate date correction':'Completion certificate unlocking',{
+      verify:async payment=>paymentResult(await request<Row>(path+'/verify','POST',{paymentId:order._id,...payment})),
+      reconcilePayu:exit=>payuConfirmation.confirm({
+        path:path+'/'+order._id+'/reconcile',amount:order.amountInPaise,
+        label:dateEdit?'Certificate date correction':'Internship certificate',
+        successText:dateEdit?'Your certificate dates were updated. Your new certificate is ready to download.':'You can now submit your internship review to access the certificate.',
+      },exit),
+      dismiss:()=>setStatus('Checkout closed. Check the payment status if you completed payment in the gateway.'),
+      fail:()=>setStatus('Payment failed. You can retry in checkout or check the existing order.'),
+    });
   }
   function dateEditStatus(result:Row){
     if(result.status==='paid')setStatus('Dates updated. Your new certificate is ready to download.');
@@ -95,6 +111,8 @@ export default function Track(){
   const approved=Boolean(row.approvedAt),offered=Boolean(row.offerLetterAccessedAt),tasks=Boolean(row.taskDocumentAccessedAt);
   const submission:Row|undefined=row.history?.[0];
   const paid=row.certificatePaymentStatus==='paid',cert=row.certificate?.status==='issued';
+  const returnedPayment=returnedDateEdit?datePayment.data:row.payment;
+  const returnedStatus=returnedPayment?._id===params.get('paymentId')?returnedPayment?.status:undefined;
   const canSubmit=['Internship In Progress','Revision Required'].includes(row.internshipStatus);
   const canPay=row.internshipStatus==='Certificate Unlock Pending';
   const idLink=new URL('/verify-certificate',siteUrl);idLink.searchParams.set('id',row.studentInternshipId);
@@ -104,6 +122,12 @@ export default function Track(){
     <div className="track-summary panel"><Badge>{row.internshipStatus}</Badge><span>Joining date {day(row.startDate||row.applicationDate)}</span>{row.endDate&&<span>Internship end date {day(row.endDate)}</span>}</div>
     {error!=null&&<Fault error={error}/>}
     {status&&<Status>{status}</Status>}
+    {!status&&params.get('paymentReturn')==='payu'&&(
+      returnedStatus==='paid'?<Status>{returnedDateEdit?'Payment verified. Your updated certificate is ready.':'Payment verified. You can now submit your internship review.'}</Status>:
+      returnedStatus==='failed'?<div className="fault" role="status">Payment failed. You can retry in checkout.</div>:
+      <div className="info" role="status">{returnedStatus==='needs_review'?'Payment verified. Contact support to complete the certificate update.':'Check the latest payment or certificate status below.'}</div>
+    )}
+    <PayuConfirmation confirmation={payuConfirmation}/>
     <section className="panel timeline-panel"><h2>Internship progress</h2><ol className="timeline">
       <Step title="Application Submitted" state="done"><p>{day(row.applicationDate)} · {row.studentInternshipId}</p></Step>
       <Step title={row.applicationStatus==='rejected'?'Application Rejected':'Application Review'} state={row.applicationStatus==='pending'?'current':'done'}>{row.applicationStatus==='pending'?<p>Your application is being reviewed by the DInterns team.</p>:row.applicationStatus==='rejected'?<><p>{row.decisionReason}</p>{!row.active&&<Link className="btn secondary" to={'/internships?apply='+row.domainId}>Reapply</Link>}</>:<p>Application review completed.</p>}</Step>
@@ -212,7 +236,7 @@ export default function Track(){
             finally{setDateEditing(false);refresh();}
           }}>Check payment status</Button>}
         </div>}
-        {settings.data&&!settings.data.paymentsConfigured&&<p className="info">Razorpay is unavailable. Try again later.</p>}
+        {settings.data&&!settings.data.paymentsConfigured&&<p className="info">Certificate checkout is unavailable. Try again later.</p>}
       </form>
     </Modal>}
     {modal==='review'&&<Modal title="Review Your Internship" close={()=>setModal(null)}><form className="form-stack" onSubmit={event=>{

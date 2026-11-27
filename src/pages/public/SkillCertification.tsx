@@ -1,11 +1,12 @@
 import {useEffect,useRef,useState} from 'react';
-import {Link,useLocation,useNavigate,useParams} from 'react-router-dom';
+import {Link,useLocation,useNavigate,useParams,useSearchParams} from 'react-router-dom';
 import {useQueryClient} from '@tanstack/react-query';
 import {Clock3,Download} from 'lucide-react';
 import {openPdf,request,useAccount,useData} from '../../api/client';
 import {openCheckout,type CheckoutOrder} from '../../api/checkout';
 import {Badge,Button,Empty,Fault,Loader,Modal,PageHeading,Pagination,Status} from '../../components/ui';
 import {ExamCard} from '../../components/ExamCard';
+import {PayuConfirmation,usePayuConfirmation} from '../../components/PayuConfirmation';
 import type {ActiveAttempt,Exam,ExamProgress,ExamResult} from '../../examination';
 import {rupees,type Page,type SiteSettings} from '../../types';
 
@@ -20,6 +21,10 @@ function useExamActions(){
   const [error,setError]=useState<unknown>(null);
   const [message,setMessage]=useState('');
   const navigate=useNavigate(),cache=useQueryClient();
+  function refreshProgress(){
+    return cache.invalidateQueries({predicate:({queryKey})=>String(queryKey[0]).startsWith(studentExams+'/progress')});
+  }
+  const confirmation=usePayuConfirmation(()=>{void refreshProgress();});
   async function run(key:string,work:()=>Promise<void>){
     setBusy(key);setError(null);setMessage('');
     try{await work();}catch(error){setError(error);}finally{setBusy('');}
@@ -34,19 +39,28 @@ function useExamActions(){
   function unlock(id:string){
     return run('pay:'+id,async()=>{
       const payment=await request<Payment>('/payments/exam/order','POST',{examId:id});
+      function paymentResult({status}:{status:string}){
+        if(status==='paid')setMessage('Your examination certificate is ready.');
+        else if(status==='failed')setMessage('Payment failed. You can retry in Checkout.');
+        else setMessage('Payment is pending. Use Unlock Certificate again to check.');
+      }
       if(payment.status==='paid')setMessage('Your examination certificate is ready.');
-      else await openCheckout(payment,'Examination certificate',async payload=>{
-        const result=await request<{status:string}>('/payments/exam/verify','POST',{paymentId:payment._id,...payload});
-        setMessage(result.status==='paid'?'Your examination certificate is ready.':'Payment is pending. Use Unlock Certificate again to check.');
-      },()=>setMessage('Checkout closed. Use Unlock Certificate again to check or resume payment.'),
-      ()=>setMessage('Payment failed. You can retry in Checkout.'));
-      await cache.invalidateQueries({predicate:({queryKey})=>String(queryKey[0]).startsWith(studentExams+'/progress')});
+      else await openCheckout(payment,'Examination certificate',{
+        verify:async payload=>paymentResult(await request<{status:string}>('/payments/exam/verify','POST',{paymentId:payment._id,...payload})),
+        reconcilePayu:exit=>confirmation.confirm({
+          path:'/payments/exam/'+payment._id+'/reconcile',amount:payment.amountInPaise,label:'Skill certificate',
+          successText:'Your skill certificate is ready to download.',
+        },exit),
+        dismiss:()=>setMessage('Checkout closed. Use Unlock Certificate again to check or resume payment.'),
+        fail:()=>setMessage('Payment failed. You can retry in Checkout.'),
+      });
+      await refreshProgress();
     });
   }
   function download(id:string){
     return run('download:'+id,()=>openPdf(studentExams+'/'+id+'/certificate','DInterns-Examination-Certificate.pdf'));
   }
-  return {busy,error,message,start,unlock,download};
+  return {busy,error,message,start,unlock,download,confirmation};
 }
 type Actions=ReturnType<typeof useExamActions>;
 function ExamButtons({examId,progress,actions,canPay,amount,start}:{examId:string;progress?:ExamProgress;actions:Actions;canPay:boolean;amount?:number;start:()=>void}){
@@ -84,6 +98,7 @@ export default function SkillCertification(){
   const progress=useData<Record<string,ExamProgress>>(studentExams+'/progress?ids='+ids,Boolean(ids&&canTake));
   const actions=useExamActions();
   return <div className="container content-page">
+    <PayuConfirmation confirmation={actions.confirmation}/>
     <PageHeading title="Skill Certification">Take a timed exam and earn a verifiable DInterns certificate.</PageHeading>
     {list.isPending&&<Loader/>}{list.error&&<Fault error={list.error} retry={list.refetch}/>}
     {progress.error&&<Fault error={progress.error} retry={progress.refetch}/>}
@@ -160,6 +175,7 @@ function TimedExam({attempt,receivedAt,onResult}:{attempt:ActiveAttempt;received
 
 export function ExaminationAttempt(){
   const {attemptId}=useParams();
+  const [params]=useSearchParams();
   const account=useAccount(),cache=useQueryClient();
   const path=studentExams+'/attempts/'+attemptId;
   const attempt=useData<ActiveAttempt|ExamResult>(path,Boolean(attemptId&&account.data&&account.data.role!=='admin'));
@@ -177,6 +193,7 @@ export function ExaminationAttempt(){
   const record=attempt.data;
   if(!record)return null;
   return <div className="container content-page exam-attempt">
+    <PayuConfirmation confirmation={actions.confirmation}/>
     <Link to={catalogue}>Skill Certification</Link>
     <PageHeading title={record.examName}/>
     {record.active?<TimedExam key={record._id} attempt={record} receivedAt={attempt.dataUpdatedAt} onResult={result=>{
@@ -186,6 +203,9 @@ export function ExaminationAttempt(){
       <h2>Exam Result</h2><ResultScore result={record}/>
       {actions.error!=null&&<Fault error={actions.error}/>}
       {actions.message&&<Status>{actions.message}</Status>}
+      {!actions.message&&params.get('paymentReturn')==='payu'&&(progress.data?.[record.examId]?.certificateId?
+        <Status>Payment verified. Your skill certificate is ready to download.</Status>:
+        <div className="info" role="status">Check your certificate status below.</div>)}
       <ExamButtons examId={record.examId} progress={progress.data?.[record.examId]??{attempt:record,passed:record.passed}}
         actions={actions} canPay={Boolean(settings.data?.paymentsConfigured)} amount={settings.data?.examCertificateFee}
         start={()=>void actions.start(record.examId)}/>

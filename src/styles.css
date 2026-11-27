@@ -228,6 +228,16 @@ dialog::backdrop{background:#0b1736a3}
 .details dt{color:var(--muted)}
 .details dd{margin:0;font-weight:650;white-space:pre-wrap}
 .pagination{display:flex;gap:12px;justify-content:center;align-items:center;margin-block:17px;font-size:.88rem;color:var(--muted)}
+.payment-confirmation{display:grid;gap:20px}
+.payment-receipt{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #dbe7fa;border-radius:12px;background:#f6f9ff}
+.payment-receipt img{object-fit:contain;flex:none}
+.payment-receipt span{flex:1;overflow-wrap:anywhere}
+.payment-receipt strong{white-space:nowrap}
+.payment-confirmation-status{display:grid;justify-items:center;gap:8px;text-align:center}
+.payment-confirmation-status svg{color:#986208}
+.payment-confirmation-status .payment-verified{color:#136849}
+.payment-confirmation-status p{margin:0;color:var(--muted)}
+.payment-confirmation .actions{justify-content:flex-end}
 .prose-page{max-width:850px}
 .policy,.form-panel{padding:24px;display:grid;gap:16px;align-content:start}
 .policy h2,.form-panel h2{font-size:1.33rem}

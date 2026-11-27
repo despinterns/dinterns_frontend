@@ -18,7 +18,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://checkout.razorpay.com; connect-src 'self' https://api.dinterns.online https://api.razorpay.com https://*.razorpay.com; frame-src https://api.razorpay.com https://*.razorpay.com blob:; img-src 'self' https://res.cloudinary.com https://*.razorpay.com data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com"
+          "value": "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://jssdk-uat.payu.in https://jssdk.payu.in; connect-src 'self' https://api.dinterns.online https://api.razorpay.com https://*.razorpay.com https://apitest.payu.in https://api.payu.in; frame-src https://api.razorpay.com https://*.razorpay.com https://test.payu.in https://secure.payu.in https://apitest.payu.in https://api.payu.in blob:; img-src 'self' https://res.cloudinary.com https://*.razorpay.com data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com https://test.payu.in https://secure.payu.in https://apitest.payu.in https://api.payu.in"
         },
         {
           "key": "Referrer-Policy",

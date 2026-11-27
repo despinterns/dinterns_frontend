@@ -45,7 +45,7 @@ export default function Internships(){
   }
   const close=()=>setParams(selected?{domain:selected}:{});
   return <div className="container content-page">
-    <PageHeading title="Available Internships">Explore our free virtual internship programmes and start building your professional skills.</PageHeading>
+    <PageHeading title="Available Internships">Apply for virtual internships for free and start building your professional skills.</PageHeading>
     <div className="filter-bar">
       <label className="search-field"><Search size={19}/><input type="search" placeholder="Search internship domains..." aria-label="Search internship domains" value={search} onChange={e=>setSearch(e.target.value)}/></label>
       <select aria-label="Domain" value={selected??''} onChange={e=>setParams(e.target.value?{domain:e.target.value}:{})}><option value="">All Domains</option>{data?.map(item=><option key={item._id} value={item._id}>{item.domainName}</option>)}</select>

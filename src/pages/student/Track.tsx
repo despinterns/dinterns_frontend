@@ -39,7 +39,7 @@ export default function Track(){
   const base='/student/enrollments/'+enrollmentId;
   const query=useData<Row>(base,true,query=>query.state.data?.internshipStatus==='Submission Under Review'?5000:20000),settings=useData<SiteSettings>('/settings/public');
   const cache=useQueryClient();
-  const action=useAction([base,'/student/dashboard','/student/enrollments?','/notifications']);
+  const action=useAction<{awaitingPayment?:boolean}>([base,'/student/dashboard','/student/enrollments?','/notifications']);
   const [modal,setModal]=useState<'rules'|'submit'|'review'|'certificateEdit'|null>(null),[taskName,setTaskName]=useState(''),[submissionError,setSubmissionError]=useState('');
   const [busy,setBusy]=useState(''),[error,setError]=useState<unknown>(null),[status,setStatus]=useState('');
   const row=query.data;
@@ -56,7 +56,7 @@ export default function Track(){
     toast(modal==='rules'?'Guidelines accepted.':modal==='submit'?'Projects submitted for review.':'Review submitted.');
     setModal(null);refresh();
   }
-  function show(kind:'rules'|'submit'|'review'){action.reset();setSubmissionError('');setModal(kind);setTaskName(row?.history?.[0]?.certificateName||row?.applicationDetails.fullName||'');}
+  function show(kind:'rules'|'submit'|'review'){action.reset();setSubmissionError('');setModal(kind);setTaskName(row?.submissionDraft?.certificateName||row?.history?.[0]?.certificateName||row?.applicationDetails.fullName||'');}
   async function perform(name:string,operation:()=>Promise<void>){
     setBusy(name);setError(null);setStatus('');
     try{await operation();}catch(failure){setError(failure);}finally{setBusy('');refresh();}
@@ -66,30 +66,32 @@ export default function Track(){
   }
   function pay(promoCode?:string){
     if(!row)return;
+    const submissionCheckout=row.internshipStatus!=='Certificate Unlock Pending';
     void perform('payment',async()=>{
       const order=await request<CheckoutOrder&{_id:string;status:string}>('/payments/create-order','POST',{enrollmentId:row._id,promoCode});
       if(order.status==='paid'){
-        setStatus('Certificate fee covered. Submit your internship review to access the certificate.');
+        setStatus(submissionCheckout?'Payment confirmed. Your tasks have been submitted for admin review.':'Payment confirmed. Submit your internship review to access the certificate.');
         return;
       }
       if(order.status==='pending'&&row.payment?.status==='pending')setStatus('Checking existing payment order.');
-      await checkout(order,false);
+      await checkout(order,false,submissionCheckout);
     });
   }
-  async function checkout(order:CheckoutOrder&{_id:string},dateEdit:boolean){
+  async function checkout(order:CheckoutOrder&{_id:string},dateEdit:boolean,submissionCheckout=false){
     const path=dateEdit?'/payments/date-edit':'/payments';
+    const description=dateEdit?'Certificate date correction':submissionCheckout?'Internship task submission':'Internship certificate';
+    const successText=dateEdit?'Your certificate dates were updated. Your new certificate is ready to download.':submissionCheckout?'Your tasks have been submitted for admin review.':'You can now submit your internship review to access the certificate.';
     function paymentResult(result:Row){
       if(dateEdit)dateEditStatus(result);
-      else if(result.status==='paid')setStatus('Payment verified. You can now submit your review.');
+      else if(result.status==='paid')setStatus('Payment verified. '+successText);
       else if(result.status==='failed')setStatus('Payment failed. You can retry in checkout.');
       else setStatus('Payment is pending verification.');
     }
-    await openCheckout(order,dateEdit?'Certificate date correction':'Completion certificate unlocking',{
+    await openCheckout(order,description,{
       verify:async payment=>paymentResult(await request<Row>(path+'/verify','POST',{paymentId:order._id,...payment})),
       reconcilePayu:exit=>payuConfirmation.confirm({
         path:path+'/'+order._id+'/reconcile',amount:order.amountInPaise,
-        label:dateEdit?'Certificate date correction':'Internship certificate',
-        successText:dateEdit?'Your certificate dates were updated. Your new certificate is ready to download.':'You can now submit your internship review to access the certificate.',
+        label:description,successText,
       },exit),
       dismiss:()=>setStatus('Checkout closed. Check the payment status if you completed payment in the gateway.'),
       fail:()=>setStatus('Payment failed. You can retry in checkout or check the existing order.'),
@@ -119,7 +121,20 @@ export default function Track(){
   const returnedPayment=returnedDateEdit?datePayment.data:row.payment;
   const returnedStatus=returnedPayment?._id===params.get('paymentId')?returnedPayment?.status:undefined;
   const canSubmit=['Internship In Progress','Revision Required'].includes(row.internshipStatus);
-  const canPay=row.internshipStatus==='Certificate Unlock Pending';
+  const refunded=row.certificatePaymentStatus==='refunded';
+  const canPay=row.internshipStatus==='Certificate Unlock Pending'&&!refunded;
+  const draft=row.submissionDraft;
+  const canPayForSubmission=Boolean(draft&&canSubmit&&!paid&&!refunded);
+  const checkoutControls=(submissionCheckout:boolean)=><>
+    {settings.isPending&&<Loader text="Checking payment availability…"/>}{settings.error&&<Fault error={settings.error} retry={settings.refetch}/>}
+    {settings.data&&<CertificateCheckout key={row._id} product="internship" referenceId={row._id}
+      amount={row.payment?.amountInPaise??settings.data.fee} canPay={settings.data.paymentsConfigured}
+      canApplyPromo={Boolean(settings.data.promoCodesEnabled)} disabled={Boolean(busy)||action.isPending} busy={busy==='payment'} onUnlock={pay} submission={submissionCheckout}/>}
+    {row.payment?._id&&<Button variant="secondary" disabled={Boolean(busy)} busy={busy==='check'} onClick={()=>perform('check',async()=>{
+      const result=await request<Row>('/payments/'+row.payment._id+'/reconcile');
+      setStatus(result.status==='paid'?(submissionCheckout?'Payment verified. Your tasks have been submitted for admin review.':'Payment verified.'):'Payment status: '+result.status+'.');
+    })}>Check Payment Status</Button>}
+  </>;
   const idLink=new URL('/verify-certificate',siteUrl);idLink.searchParams.set('id',row.studentInternshipId);
   return <div className="track-page">
     <Link to="/student/internships">Joined Internships</Link>
@@ -128,7 +143,7 @@ export default function Track(){
     {error!=null&&<Fault error={error}/>}
     {status&&<Status>{status}</Status>}
     {!status&&params.get('paymentReturn')==='payu'&&(
-      returnedStatus==='paid'?<Status>{returnedDateEdit?'Payment verified. Your updated certificate is ready.':'Payment verified. You can now submit your internship review.'}</Status>:
+      returnedStatus==='paid'?<Status>{returnedDateEdit?'Payment verified. Your updated certificate is ready.':row.internshipStatus==='Review Pending'?'Payment verified. You can now submit your internship review.':'Payment verified. See your task submission status below.'}</Status>:
       returnedStatus==='failed'?<div className="fault" role="status">Payment failed. You can retry in checkout.</div>:
       <div className="info" role="status">{returnedStatus==='needs_review'?'Payment verified. Contact support to complete the certificate update.':'Check the latest payment or certificate status below.'}</div>
     )}
@@ -140,25 +155,27 @@ export default function Track(){
       <Step title="Accept Internship Rules" state={row.rulesAcceptedAt?'done':approved?'current':'locked'}>{approved&&(row.rulesAcceptedAt?<p>Accepted {day(row.rulesAcceptedAt)} · Version {row.rulesVersion}</p>:<Button onClick={()=>show('rules')}>Accept Internship Rules</Button>)}</Step>
       <Step title="Download Offer Letter" state={offered?'done':row.rulesAcceptedAt?'current':'locked'}>{row.rulesAcceptedAt&&<div className="actions"><Button variant="secondary" disabled={Boolean(busy)} busy={busy==='offer-letter'} onClick={()=>document('offer-letter')}><Download size={17}/>Download Offer Letter</Button><Button variant="ghost" disabled={Boolean(busy)} busy={busy==='offer-letterpreview'} onClick={()=>document('offer-letter',true)}><Eye size={17}/>View PDF</Button></div>}</Step>
       <Step title="Download Internship Tasks" state={tasks?'done':offered?'current':'locked'}>{offered&&<><p>{row.totalTasks} available · {row.minimumRequiredTasks} required · Document version {row.taskVersion}</p><Button variant="secondary" disabled={Boolean(busy)} busy={busy==='tasks'} onClick={()=>document('tasks')}><Download size={17}/>Download Internship Tasks</Button></>}</Step>
-      <Step title="Submit Completed Tasks" state={submission&&!canSubmit?'done':tasks&&canSubmit?'current':'locked'}>{tasks&&canSubmit&&<Button onClick={()=>show('submit')}>{submission?'Resubmit Tasks':'Submit Tasks'}</Button>}</Step>
+      <Step title="Submit Completed Tasks" state={submission&&!canSubmit?'done':tasks&&canSubmit?'current':'locked'}>
+        {tasks&&canSubmit&&!refunded&&<>
+          <p>{paid?'Your existing payment covers this revision.':draft?'Your tasks are saved. Complete checkout to send them for admin review.':'Add your project links and pay the ₹99 submission fee to send your tasks for admin review. Promo codes can reduce the fee.'}</p>
+          <Button variant={draft?'secondary':'primary'} disabled={Boolean(busy)} onClick={()=>show('submit')}>{draft?'Edit Saved Tasks':submission?'Resubmit Tasks':paid?'Submit Tasks':'Add Tasks'}</Button>
+          {canPayForSubmission&&<>
+            <p>After your tasks are approved, submit your internship review to download your certificate. <Link to="/terms#charges">Fees and charges</Link></p>
+            {checkoutControls(true)}
+          </>}
+        </>}
+        {paid&&typeof row.payment?.amountInPaise==='number'&&<p>Verified payment {rupees(row.payment.amountInPaise)}</p>}
+        {refunded&&<p>Your payment was refunded. Contact support for help with this internship.</p>}
+      </Step>
       <Step title="Task Submission Review" state={submission?(submission.status==='pending'?'current':'done'):'locked'}>
         {submission&&<><Badge>{submission.status}</Badge><p>{submission.status==='pending'?'Your internship projects are being evaluated by the DInterns team.':submission.feedback}</p>
           <details><summary>Submission history</summary><ul>{row.history.map((item:Row)=><li key={item._id}>Version {item.submissionVersion} · {day(item.submittedAt)} · {item.status}{item.feedback?' · '+item.feedback:''}</li>)}</ul></details></>}
       </Step>
-      <Step title="Certificate Unlocking Payment" state={paid?'done':canPay?'current':'locked'}>
-        {(canPay||paid||row.certificatePaymentStatus==='refunded')&&<><p>{paid?'Verified payment: '+rupees(row.payment?.amountInPaise??9900):row.certificatePaymentStatus==='refunded'?'The certificate payment was refunded.':'Congratulations! Your internship projects have been successfully approved.'}</p>
-        {canPay&&<>
-          {settings.isPending&&<Loader text="Checking payment availability…"/>}{settings.error&&<Fault error={settings.error} retry={settings.refetch}/>}
-          {settings.data&&<CertificateCheckout key={row._id} product="internship" referenceId={row._id}
-            amount={row.payment?.amountInPaise??settings.data.fee} canPay={settings.data.paymentsConfigured}
-            canApplyPromo={Boolean(settings.data.promoCodesEnabled)} disabled={Boolean(busy)} busy={busy==='payment'} onUnlock={pay}/>}
-          {row.payment?._id&&<Button variant="secondary" disabled={Boolean(busy)} busy={busy==='check'} onClick={()=>perform('check',async()=>{
-            const result=await request<Row>('/payments/'+row.payment._id+'/reconcile');
-            setStatus(result.status==='paid'?'Payment verified.':('Payment status: '+result.status+'.'));
-          })}>Check Payment Status</Button>}</>}</>}
-      </Step>
-      <Step title="Student Review" state={row.reviewSubmitted||row.reviewAssistance?'done':paid?'current':'locked'}>
-        {row.internshipStatus==='Review Pending'&&<><p>Tell us about your experience. Every rating is eligible, and publication is optional.</p><div className="actions"><Button onClick={()=>show('review')}>Submit Review</Button><Link className="btn secondary" to={'/student/support?new=1&enrollment='+row._id}>Get Review Assistance</Link></div></>}
+      {canPay&&<Step title="Certificate Unlocking Payment" state="current">
+        <p>Your internship projects were approved. Complete your existing certificate checkout.</p>{checkoutControls(false)}
+      </Step>}
+      <Step title="Student Review" state={row.reviewSubmitted||row.reviewAssistance?'done':row.internshipStatus==='Review Pending'&&paid?'current':'locked'}>
+        {row.internshipStatus==='Review Pending'&&paid&&<><p>Tell us about your experience. Every rating is eligible, and publication is optional.</p><div className="actions"><Button onClick={()=>show('review')}>Submit Review</Button><Link className="btn secondary" to={'/student/support?new=1&enrollment='+row._id}>Get Review Assistance</Link></div></>}
         {row.reviewSubmitted&&<p>Review submitted.</p>}{row.reviewAssistance&&<p>Support-assisted document access approved.</p>}
       </Step>
       <Step title="Completion Certificate" state={cert?'done':row.certificate?.status==='revoked'?'current':'locked'}>
@@ -202,15 +219,21 @@ export default function Track(){
         return;
       }
       setSubmissionError('');
-      action.mutate({path:base+'/submissions',body:{certificateName:taskName,taskLinks,linkedinPostLink:linkedin||undefined,confirmed:true}},{onSuccess:saved});
+      action.mutate({path:base+'/submissions',body:{certificateName:taskName,taskLinks,linkedinPostLink:linkedin||undefined,confirmed:true}},{
+        onSuccess:(result)=>{
+          if(result?.awaitingPayment){
+            setModal(null);setError(null);setStatus('Tasks saved. Complete checkout to submit them for admin review.');refresh();
+          }else saved();
+        },
+      });
     }}><div className="form-grid"><Field label="Student Internship ID"><input readOnly value={row.studentInternshipId}/></Field><Field label="Internship Domain"><input readOnly value={row.domainName}/></Field></div>
       <Field label="Name on Certificate"><input required minLength={2} maxLength={100} value={taskName} onChange={event=>setTaskName(event.target.value)}/></Field>
       <div className="info"><BadgeCheck size={19}/>Certificate name preview: <strong>{taskName}</strong></div><p>Submit at least {row.minimumRequiredTasks} distinct project links. GitHub Pages, repositories, and other web links are accepted.</p>
-      {Array.from({length:row.totalTasks},(_,index)=><Field key={index} label={'Task '+(index+1)+' Project Link'}><input name={'task'+index} type="url" placeholder="https://example.com/my-project" maxLength={2048} defaultValue={submission?.taskLinks[index]}/></Field>)}
+      {Array.from({length:row.totalTasks},(_,index)=><Field key={index} label={'Task '+(index+1)+' Project Link'}><input name={'task'+index} type="url" placeholder="https://example.com/my-project" maxLength={2048} defaultValue={(draft??submission)?.taskLinks[index]}/></Field>)}
       {row.linkedinAlternative&&<div className="info">Approved alternative: {row.linkedinAlternative}</div>}
-      <Field label="Offer Letter Link"><input name="linkedin" type="url" placeholder="https://lnkd.in/… or another web link" maxLength={2048} required={!row.linkedinAlternative} defaultValue={submission?.linkedinPostLink}/></Field>
+      <Field label="Offer Letter Link"><input name="linkedin" type="url" placeholder="https://lnkd.in/… or another web link" maxLength={2048} required={!row.linkedinAlternative} defaultValue={(draft??submission)?.linkedinPostLink}/></Field>
       <label className="checkbox"><input type="checkbox" required/>I confirm that the submitted projects are my own work and the information provided is correct.</label>
-      {submissionError&&<div className="fault" role="alert">{submissionError}</div>}{action.error&&<Fault error={action.error}/>}<Button type="submit" busy={action.isPending}>Submit for Review</Button></form></Modal>}
+      {submissionError&&<div className="fault" role="alert">{submissionError}</div>}{action.error&&<Fault error={action.error}/>}<Button type="submit" busy={action.isPending}>{paid?'Submit for Review':'Continue to Payment'}</Button></form></Modal>}
     {modal==='certificateEdit'&&cert&&<Modal title="Edit Certificate" close={()=>setModal(null)}>
       <form className="form-stack" onSubmit={event=>{
         const form=formData(event);

@@ -10,21 +10,21 @@ type SeoPage={
 
 export const seoPages:Record<string,SeoPage>={
   '/':{
-    title:'DInterns | Free Virtual Internships & Skill Certification',
-    heading:'Free Virtual Internships and Skill Certification',
-    description:'DInterns (Desperate Interns) offers free online internships with practical projects and digital offer letters. Explore available internships and skill certification exams.',
+    title:'DInterns | Virtual Internships & Skill Certification',
+    heading:'Virtual Internships and Skill Certification',
+    description:'DInterns (Desperate Interns) offers virtual internships with free applications, practical projects and digital offer letters. Explore internships and skill certification exams.',
     points:[
-      ['Are DInterns internships free?','Yes. Registration, internship participation and offer letters are free. Completion certificates are optional and carry a separate fee.'],
+      ['What is free in a DInterns internship?','Registration, accessing internship tasks and offer letters are free. A ₹99 fee applies when submitting tasks for evaluation, before eligible promo discounts.'],
       ['How long is a DInterns internship?','DInterns virtual internships run for one calendar month and include practical projects.'],
       ['How can I get started?','Choose an internship domain and apply online, or take a timed exam in the Skill Certification section.'],
     ],
   },
   '/internships':{
-    title:'Free Online Internships for Students | DInterns',
-    heading:'Available Free Virtual Internships',
+    title:'Online Internships for Students · Free to Apply | DInterns',
+    heading:'Available Virtual Internships',
     description:'Explore one-month virtual internships at DInterns. Apply online for free, download your offer letter after approval and build practical projects from anywhere.',
     points:[
-      ['How do I apply for a free internship?','Choose an available internship domain, sign in and submit the application. Track approval and next steps from your student dashboard.'],
+      ['How do I apply for an internship for free?','Choose an available internship domain, sign in and submit the application. Track approval and next steps from your student dashboard.'],
       ['Can I complete the internship online?','Yes. DInterns internships are virtual. Download the assigned tasks and submit your project links from the internship tracker.'],
     ],
   },
@@ -55,14 +55,14 @@ export const seoPages:Record<string,SeoPage>={
     ],
   },
   '/about':{
-    title:'About DInterns (Desperate Interns) | Free Virtual Internships',
+    title:'About DInterns (Desperate Interns) | Virtual Internships',
     heading:'About DInterns',
-    description:'DInterns, short for Desperate Interns, helps students build practical skills through free virtual internships, project submissions and online skill exams.',
+    description:'DInterns, short for Desperate Interns, helps students build practical skills through virtual internships, project submissions and online skill exams.',
   },
   '/college-coordinator':{
     title:'College Coordinator Programme | DInterns',
     heading:'DInterns College Coordinator Programme',
-    description:'Learn about the DInterns college coordinator programme and apply to help students at your college find free virtual internships and skill-building opportunities.',
+    description:'Learn about the DInterns college coordinator programme and help students find virtual internships with free applications and skill-building opportunities.',
   },
   '/guidelines':{
     title:'Virtual Internship Guidelines | DInterns',

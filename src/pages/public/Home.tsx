@@ -8,9 +8,9 @@ import {ExamCard} from '../../components/ExamCard';
 import {StudentReviews} from '../../components/StudentReviews';
 import type {Exam} from '../../examination';
 
-const benefits=[[Wallet,'100% Free Internships'],[CodeXml,'Practical Projects'],[CalendarClock,'Flexible Learning'],[ShieldCheck,'Verifiable Certificates']] as const;
+const benefits=[[Wallet,'Free Applications'],[CodeXml,'Practical Projects'],[CalendarClock,'Flexible Learning'],[ShieldCheck,'Verifiable Certificates']] as const;
 const features=[
-  [Wallet,'100% Free Internships','Apply and participate for ₹0, with no registration or offer letter fees.'],
+  [Wallet,'Free Applications','Apply for ₹0 and access your offer letter and internship tasks for free.'],
   [CodeXml,'Practical Project-Based Learning','Build projects you can explain, share, and add to your portfolio.'],
   [CalendarClock,'Flexible Internship Schedule','Plan your project work around classes and other commitments.'],
   [FileCheck2,'Digital Offer Letters','Access your official offer letter after approval and rules acceptance.'],
@@ -24,7 +24,7 @@ export function DomainCard({domain,action}:{domain:Domain;action?:()=>void}){
     {domain.imageUrl?<img src={domain.imageUrl} alt="" loading="lazy" className="domain-image"/>:<div className="domain-image domain-art"><Layers3 size={45}/></div>}
     <div className="domain-body"><div className="domain-category">{domain.category}</div><h3>{domain.domainName}</h3><p>{domain.description}</p>
       <div className="domain-meta"><span><Clock3 size={16}/>1 month</span><span><ListChecks size={16}/>{domain.totalTasks} tasks</span></div>
-      <div className="domain-actions"><span className="badge green">Free Internship</span>{action?<button className="btn primary" onClick={action}>Apply Now</button>:<Link className="btn secondary" to={'/internships?domain='+domain._id}>Explore Internship</Link>}</div>
+      <div className="domain-actions"><span className="badge green">Free to Apply</span>{action?<button className="btn primary" onClick={action}>Apply Now</button>:<Link className="btn secondary" to={'/internships?domain='+domain._id}>Explore Internship</Link>}</div>
     </div>
   </article>;
 }
@@ -36,11 +36,11 @@ export default function Home(){
     <section className="hero">
       <div className="container hero-grid">
         <motion.div className="hero-copy" initial={reduced?false:{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:.4}}>
-          <div className="hero-badge"><span/><span>100% free virtual internships</span></div>
+          <div className="hero-badge"><span/><span>Virtual internships · Free to apply</span></div>
           <h1 className="hero-brandline">DInterns — Desperate Interns</h1>
           <h2 className="hero-tagline">From Desperate<br className="hero-line"/> to <em>Determined.</em></h2>
           <h3 className="hero-support">Your Career Starts With an Opportunity.</h3>
-          <p>Gain practical experience, build real-world projects and develop industry-relevant skills through our 100% free virtual internship programmes.</p>
+          <p>Gain practical experience, build real-world projects and develop industry-relevant skills through our virtual internship programmes.</p>
           <div className="actions hero-actions"><Link to="/internships" className="btn primary"><BriefcaseBusiness size={18}/>Apply Internship</Link><Link to="/verify-certificate" className="btn secondary"><ShieldCheck size={18}/>Verify Certificate</Link></div>
         </motion.div>
         <div className="hero-visual">

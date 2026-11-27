@@ -6,17 +6,20 @@ import {Button,Fault,Field} from './ui';
 type Quote={code:string;percent:number;originalAmountInPaise:number;amountInPaise:number};
 type Props={
   product:'internship'|'skill';referenceId:string;amount:number;canPay:boolean;
-  busy:boolean;disabled:boolean;canApplyPromo:boolean;onUnlock:(code?:string)=>void;
+  busy:boolean;disabled:boolean;canApplyPromo:boolean;onUnlock:(code?:string)=>void;submission?:boolean;
 };
 
-export function CertificateCheckout({product,referenceId,amount,canPay,busy,disabled,canApplyPromo,onUnlock}:Props){
+export function CertificateCheckout({product,referenceId,amount,canPay,busy,disabled,canApplyPromo,onUnlock,submission}:Props){
   const [showPromo,setShowPromo]=useState(false),[code,setCode]=useState(''),[quote,setQuote]=useState<Quote|null>(null);
   const [checking,setChecking]=useState(false),[error,setError]=useState<unknown>(null);
   const payable=quote?.amountInPaise??amount;
+  const label=submission
+    ? (payable===0?'Submit Tasks Free':'Pay '+rupees(payable)+' and Submit Tasks')
+    : (payable===0?'Unlock Certificate Free':'Unlock Certificate · '+rupees(payable));
   return <div className="form-stack certificate-checkout">
     <div className="actions">
       <Button type="button" busy={busy} disabled={disabled||checking||(!canPay&&payable!==0)} onClick={()=>onUnlock(quote?.code)}>
-        {payable===0?'Unlock Certificate Free':'Unlock Certificate · '+rupees(payable)}
+        {label}
       </Button>
       {canApplyPromo&&<Button type="button" variant="ghost" disabled={disabled||checking} aria-expanded={showPromo} onClick={()=>setShowPromo(value=>!value)}>Have a promo code?</Button>}
     </div>

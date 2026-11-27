@@ -18,13 +18,13 @@ export const rules=[
   'Submit a link to your offer letter or the post where you shared it. LinkedIn short links are accepted.',
   'Submit genuine work you can explain.',
   'Plagiarised or fraudulent work may be rejected.',
-  'Internship participation is completely free.',
+  'Registration, access to tasks and offer letters are free. The ₹99 task submission fee is due when you send your work for evaluation. An eligible promo code can reduce that fee.',
   'Submit an honest review before downloading your completion certificate. Publication consent is optional.',
 ];
 const charges=[
-  ['Registration, internship participation, task submission and offer letter','Free (₹0)'],
+  ['Registration, access to internship tasks and offer letter','Free (₹0)'],
   ['Taking or retaking a skill examination','Free (₹0)'],
-  ['Internship completion certificate and letter of recommendation','₹99'],
+  ['Internship task submission for evaluation, including certificate and letter of recommendation if approved','₹99 before evaluation. Eligible promos may reduce this fee.'],
   ['Skill examination certificate','₹29'],
   ['Name correction on an issued internship certificate','Free (₹0)'],
   ['Date correction on an issued internship certificate','₹19'],
@@ -39,7 +39,7 @@ export function Policy({policy}:{policy:PolicyKey|'guidelines'|'about'}){
       <p>Last updated <time dateTime="2026-11-27">{policyUpdated}</time></p>
       {policy==='terms'&&<section className="policy-charges" id="charges">
         <h2>Fees and Charges</h2>
-        <p>All paid services listed below are optional. These are one-time charges in Indian rupees.</p>
+        <p>These are one-time charges in Indian rupees. The internship task submission fee is due before your work enters evaluation.</p>
         <table aria-label="DInterns fees and charges">
           <thead><tr><th scope="col">Service</th><th scope="col">Charge</th></tr></thead>
           <tbody>{charges.map(([service,charge])=><tr key={service}><td>{service}</td><td><strong>{charge}</strong></td></tr>)}</tbody>
@@ -56,7 +56,7 @@ export function Policy({policy}:{policy:PolicyKey|'guidelines'|'about'}){
   </div>;
 }
 const faqs=[
-  ['Are DInterns internships free?','Yes. Registration, participation and offer letters cost ₹0. Eligible students can unlock their completion certificate for ₹99.'],
+  ['What is free in a DInterns internship?','Registration, access to internship tasks and offer letters cost ₹0. Sending completed tasks for evaluation costs ₹99 before any eligible promo discount.'],
   ['How do I apply for an internship?','Choose an open domain under Available Internships, sign in and submit your application.'],
   ['How long does application approval take?','Review timing depends on application volume. Check your tracker for updates.'],
   ['How do I download my offer letter?','Open your approved internship and accept the guidelines. The offer letter will then be available from your tracker.'],
@@ -64,8 +64,8 @@ const faqs=[
   ['How many tasks are compulsory?','Complete at least two distinct tasks. Your domain may require more. The tracker displays its minimum.'],
   ['How do I submit my project links?','Paste a distinct HTTP or HTTPS link for each project in the submission form. You can use GitHub repositories, GitHub Pages, or another site the team can access.'],
   ['What happens if my submission is rejected?','Read the evaluator’s feedback. If the team requests changes, you can update your work and resubmit. Contact support about a final rejection.'],
-  ['How do I unlock my certificate?','After your projects are approved, pay ₹99 through your tracker and submit an honest review.'],
-  ['Why is there a ₹99 certificate fee?','The fee applies to unlocking the optional, digitally generated and publicly verifiable completion certificate.'],
+  ['How do I unlock my certificate?','Add your tasks and pay the ₹99 submission fee through the tracker. After the team approves your work, submit an honest review to download your completion certificate.'],
+  ['Can I use a promo code for internship task submission?','Yes. Apply an eligible code at checkout. A 100% discount lets you submit for evaluation for ₹0.'],
   ['What if my payment succeeds but my certificate is locked?','Use Check payment status in the tracker. If the payment remains unresolved, send a support request with the internship and gateway references.'],
   ['How do I verify my certificate?','Enter your certificate ID on the verification page or click the certificate ID in your PDF.'],
   ['How do I correct my certificate name?','Open Edit Certificate in your internship tracker and save the corrected name for free. Contact support if you cannot access the option.'],

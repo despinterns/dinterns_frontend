@@ -14,7 +14,7 @@ const sections={
     ['Student',r=>r.applicationDetails.fullName],['Internship ID',r=>r.studentInternshipId],['Mobile',r=>r.applicationDetails.mobileNumber],['Email',r=>r.applicationDetails.email],['College',r=>r.applicationDetails.college],['Course',r=>r.applicationDetails.course],['Year',r=>r.applicationDetails.courseYear],['Domain',r=>r.domainName],['Applied',dateColumn('applicationDate')],['Status',badge('applicationStatus')],
   ]},
   submissions:{title:'Task Submission Applications',path:'/submissions',description:'Evaluate submitted projects, record feedback and request revisions.',status:['pending','approved','revision','rejected'],columns:[
-    ['Student',r=>r.enrollment?.applicationDetails.fullName],['Certificate name',r=>r.certificateName],['Internship ID',r=>r.enrollment?.studentInternshipId],['Domain',r=>r.enrollment?.domainName],['Tasks',r=>r.taskLinks.length],['Submitted',dateColumn('submittedAt')],['Status',badge('status')],
+    ['Student',r=>r.enrollment?.applicationDetails.fullName],['Certificate name',r=>r.certificateName],['Internship ID',r=>r.enrollment?.studentInternshipId],['Domain',r=>r.enrollment?.domainName],['Tasks',r=>r.taskLinks.length],['Paid',r=>r.paymentReceipt?rupees(r.paymentReceipt.amountInPaise):'—'],['Discount',r=>r.paymentReceipt?rupees(r.paymentReceipt.discountInPaise):'—'],['Submitted',dateColumn('submittedAt')],['Status',badge('status')],
   ]},
   users:{title:'Users & Management',path:'/users',description:'View account and internship histories, suspend or restore student access.',status:['active','suspended'],columns:[
     ['Name',r=>r.fullName],['Email',r=>r.email],['Mobile',r=>r.mobileNumber],['Role',r=><Badge>{r.role}</Badge>],['Registered',dateColumn('createdAt')],['Applications',r=>r.stats.applied],['Completed',r=>r.stats.completed],['Status',badge('accountStatus')],
@@ -186,7 +186,13 @@ function RecordDetail({section,id,close}:{section:DetailSection;id:string;close:
   }
   if(row&&section==='submissions'){
     const enrollment=row.enrollment;
+    const receipt=row.paymentReceipt;
     content=<><Details entries={[[ 'Student',enrollment?.applicationDetails.fullName],['Certificate name',row.certificateName],['Internship ID',enrollment?.studentInternshipId],['Domain',enrollment?.domainName],['Start date',day(enrollment?.startDate)],['End date',day(enrollment?.endDate)],['Status',<Badge>{row.status}</Badge>],['Feedback',row.feedback],['Certificate performance',row.performance],['Offer letter link',row.linkedinPostLink?<a href={row.linkedinPostLink} target="_blank" rel="noopener noreferrer">Open Offer Letter Link</a>:row.linkedinAlternative]]}/>
+    {receipt&&<Details entries={[
+      ['Submission fee',rupees(receipt.originalAmountInPaise)],['Amount paid',rupees(receipt.amountInPaise)],
+      ['Promo code',receipt.promoCode||'None'],['Discount',rupees(receipt.discountInPaise)],
+      ['Payment mode',receipt.testMode?'Test payment':undefined],
+    ]}/>}
     <form className="form-stack" onSubmit={event=>{
       const form=formData(event);doAction('/review',{decision:value(form,'decision'),performance:value(form,'performance')||undefined,feedback:value(form,'feedback'),tasks:row.taskLinks.map((_:unknown,index:number)=>value(form,'task'+index))});
     }}>

@@ -302,6 +302,14 @@ dialog::backdrop{background:#0b1736a3}
 .faq p{padding-top:8px}
 .catalogue-guide{margin-top:clamp(30px,5vw,62px)}
 .catalogue-guide>h2{margin-bottom:16px}
+.mail-topic{border:0;padding:0;display:grid;gap:12px;min-width:0}
+.mail-topic legend{font-weight:600;margin-bottom:8px}
+.mail-topic .actions label{display:inline-flex;align-items:center;gap:8px}
+.mail-topic input[type=radio]{accent-color:var(--blue)}
+.mail-suggestion{border:1px solid var(--line);border-radius:9px;padding:12px}
+.mail-suggestion>.field,.mail-suggestion>.btn,.mail-suggestion>.fault{margin-top:12px}
+.mail-recipient{border:1px solid var(--line);border-radius:9px;padding:12px}
+.mail-recipient-name{font-weight:600}
 .avatar{border-radius:50%;background:#e8f0ff;color:#184aa6;display:inline-grid;place-items:center;width:38px;height:38px;font-size:.8rem;font-weight:800;flex:none}
 .notification-wrap{position:relative}
 .notification-menu{right:0;width:min(350px,calc(100vw - 32px));max-height:min(65vh,520px);overflow:auto;padding:8px}

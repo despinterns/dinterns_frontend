@@ -6,6 +6,7 @@ import {z} from 'zod';
 import {CircleCheck,Search} from 'lucide-react';
 import {useAccount,useAction,useData} from '../../api/client';
 import {Button,Empty,Fault,Field,Modal,PageHeading,Skeleton,useDebounced} from '../../components/ui';
+import {CatalogueGuide} from '../../components/CatalogueGuide';
 import type {Account,Domain} from '../../types';
 import {DomainCard} from './Home';
 const schema=z.object({fullName:z.string().trim().min(2).max(100),email:z.email(),gender:z.enum(['Woman','Man','Non-binary','Other','Prefer not to say']),college:z.string().trim().min(2).max(150),course:z.string().trim().min(2).max(100),courseYear:z.string().trim().min(1).max(40)});
@@ -56,6 +57,7 @@ export default function Internships(){
     {domains.error&&<Fault error={domains.error} retry={domains.refetch}/>}
     {account.error&&<Fault error={account.error} retry={account.refetch}/>}
     {filtered?.length?<div className="card-grid">{filtered.map(item=><DomainCard key={item._id} domain={item} action={()=>apply(item)}/>)}</div>:filtered&&<Empty title={data?.length?'No internships match your filters':'No internships are open right now'}>Check back for new opportunities or adjust your filters.</Empty>}
+    <CatalogueGuide path="/internships" title="How DInterns internships work"/>
     {applyId&&data&&!active&&<div className="info">This internship is currently unavailable.</div>}
     {active&&account.data&&account.data.role!=='admin'&&<Application domain={active} user={account.data} close={close} complete={()=>{close();setSuccess(true);}}/>}
     {active&&account.data?.role==='admin'&&<Modal title="Student registration required" close={close}><p>Applications are available to student accounts.</p><Link to="/admin" className="btn primary">Admin Dashboard</Link></Modal>}

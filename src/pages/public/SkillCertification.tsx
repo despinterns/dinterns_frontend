@@ -7,6 +7,7 @@ import {openCheckout,type CheckoutOrder} from '../../api/checkout';
 import {Badge,Button,Empty,Fault,Loader,Modal,PageHeading,Pagination,Status} from '../../components/ui';
 import {ExamCard} from '../../components/ExamCard';
 import {CertificateCheckout} from '../../components/CertificateCheckout';
+import {CatalogueGuide} from '../../components/CatalogueGuide';
 import {PayuConfirmation,usePayuConfirmation} from '../../components/PayuConfirmation';
 import type {ActiveAttempt,Exam,ExamProgress,ExamResult} from '../../examination';
 import type {Page,SiteSettings} from '../../types';
@@ -119,6 +120,7 @@ export default function SkillCertification(){
       })}</div>
       <Pagination page={list.data} change={setPage}/>
     </>}
+    <CatalogueGuide path={catalogue} title="How skill certification works"/>
     {selected&&<Modal title={selected.name} close={()=>setSelected(null)}>
       <p>You have {selected.durationMinutes} minutes from the moment you start. The timer keeps running if you leave this page.</p>
       <Button onClick={()=>{void actions.start(selected._id);setSelected(null);}}>Start Exam</Button>

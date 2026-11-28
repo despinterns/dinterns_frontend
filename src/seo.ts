@@ -24,15 +24,19 @@ export const seoPages:Record<string,SeoPage>={
     heading:'Available Virtual Internships',
     description:'Explore one-month virtual internships at DInterns. Apply online for free, download your offer letter after approval and build practical projects from anywhere.',
     points:[
-      ['How do I apply for an internship for free?','Choose an available internship domain, sign in and submit the application. Track approval and next steps from your student dashboard.'],
-      ['Can I complete the internship online?','Yes. DInterns internships are virtual. Download the assigned tasks and submit your project links from the internship tracker.'],
+      ['How do I apply?','Choose an internship domain, sign in and submit the application for free. After approval, accept the guidelines to download your offer letter and access your tasks.'],
+      ['How are my projects evaluated?','Submit your project links from the internship tracker. The ₹99 submission fee is due before evaluation, and eligible promo codes can reduce it. If your work is approved, submit your review to download your completion certificate.'],
     ],
   },
   '/skill-certification':{
     title:'Online Skill Certification Exams | DInterns',
     heading:'Skill Certification Exams',
     description:'Explore available online skill exams from DInterns. Take a timed multiple-choice test and earn eligibility for a verifiable skill certificate when you pass.',
-    points:[['How is a skill certificate earned?','Meet the passing score in a timed exam, then unlock the optional certificate. Each issued certificate has its own verification ID.']],
+    points:[
+      ['How do I take an exam?','Sign in, choose a subject and check the exam duration and passing score before you start. Each exam has multiple-choice questions. Taking or retaking an exam is free.'],
+      ['How do I get my certificate?','Meet the displayed passing score to unlock the optional skill certificate for ₹29 before any eligible promo discount. You can download it after checkout.'],
+      ['How can someone verify my certificate?','Share your certificate ID with the person who needs to verify it. They can enter the ID on the DInterns certificate verification page.'],
+    ],
   },
   '/verify-certificate':{
     title:'Verify an Internship or Skill Certificate | DInterns',

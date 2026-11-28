@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /api/internships$
+Allow: /api/examinations$
+Allow: /api/examinations?page=
 Disallow: /api/
 Disallow: /_pages/
 

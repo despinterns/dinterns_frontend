@@ -97,6 +97,7 @@ function DomainForm({id,close}:{id?:string;close:()=>void}){
   const path='/admin/domains'+(id?'/'+id:'');
   const q=useData<Row>(path,Boolean(id)),action=useAction(['/admin/domains','/admin/dashboard','/internships']);
   const [preview,setPreview]=useState(''),[progress,setProgress]=useState<number|null>(null),[fileError,setFileError]=useState(''),[domainAction,setDomainAction]=useState<'archive'|'delete'|null>(null);
+  const [taskPreviewBusy,setTaskPreviewBusy]=useState(false),[taskPreviewError,setTaskPreviewError]=useState<unknown>(null);
   const row=q.data;
   return <Modal title={id?(row?.domainName??'Internship Domain'):'Create Domain'} close={close}>
     {id&&q.isPending&&<Loader/>}{q.error&&<Fault error={q.error} retry={q.refetch}/>}
@@ -129,6 +130,15 @@ function DomainForm({id,close}:{id?:string;close:()=>void}){
         if(preview)URL.revokeObjectURL(preview);const file=e.target.files?.[0];setPreview(file?URL.createObjectURL(file):'');
       }}/></Field>
       {(preview||row?.imageUrl)&&<img className="upload-preview" src={preview||row?.imageUrl} alt="Domain image preview"/>}
+      {id&&row&&<div className="actions">
+        <Button type="button" variant="secondary" disabled={action.isPending} busy={taskPreviewBusy} onClick={async()=>{
+          setTaskPreviewBusy(true);setTaskPreviewError(null);
+          try{await openPdf(path+'/tasks','DInterns-Tasks.pdf',true);}
+          catch(error){setTaskPreviewError(error);}
+          finally{setTaskPreviewBusy(false);}
+        }}><Eye size={16}/>View Task PDF</Button>
+      </div>}
+      {taskPreviewError!=null&&<Fault error={taskPreviewError}/>}
       <Field label={id?'Replace Task PDF':'Task PDF'}><input name="tasks" type="file" accept=".pdf,application/pdf" required={!id} onChange={event=>{
         const file=event.target.files?.[0];
         if(file&&(!/\.pdf$/i.test(file.name)||file.size>10*1024*1024)){

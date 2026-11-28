@@ -1,4 +1,4 @@
-import {useState,type ReactNode} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 import {Link,useParams,useSearchParams} from 'react-router-dom';
 import {flushSync} from 'react-dom';
 import {useQueryClient} from '@tanstack/react-query';
@@ -13,6 +13,14 @@ import {CertificateCheckout} from '../../components/CertificateCheckout';
 
 function Step({title,state,children}:{title:string;state:'done'|'current'|'locked';children?:ReactNode}){
   return <li className={'timeline-step '+state}><span className="step-symbol">{state==='done'?<Check size={17}/>:state==='current'?<Clock3 size={17}/>:<LockKeyhole size={15}/>}</span><div><h3>{title}</h3>{children}</div></li>;
+}
+const dayMs=86_400_000;
+const submissionStages=['Rules Acceptance Pending','Internship In Progress','Revision Required','Submission Rejected'];
+const dateTime=new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Kolkata'});
+function countdown(milliseconds:number){
+  const seconds=Math.max(0,Math.ceil(milliseconds/1000));
+  const hours=Math.floor(seconds/3600);
+  return Math.floor(hours/24)+'d '+String(hours%24).padStart(2,'0')+'h '+String(Math.floor(seconds/60)%60).padStart(2,'0')+'m '+String(seconds%60).padStart(2,'0')+'s';
 }
 function shiftCalendarMonth(value:string,offset:1|-1){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return '';
@@ -43,6 +51,17 @@ export default function Track(){
   const [modal,setModal]=useState<'rules'|'submit'|'review'|'certificateEdit'|null>(null),[taskName,setTaskName]=useState(''),[submissionError,setSubmissionError]=useState('');
   const [busy,setBusy]=useState(''),[error,setError]=useState<unknown>(null),[status,setStatus]=useState('');
   const row=query.data;
+  const [now,setNow]=useState(Date.now);
+  const serverTime=row?.serverTime;
+  const hasClock=Boolean(row?.deadlineAt&&(submissionStages.includes(row.internshipStatus)||row.internshipStatus==='Expired'));
+  useEffect(()=>{
+    if(!hasClock||!serverTime)return;
+    const server=Date.parse(serverTime),started=performance.now();
+    const tick=()=>setNow(server+performance.now()-started);
+    tick();
+    const timer=window.setInterval(tick,1000);
+    return ()=>window.clearInterval(timer);
+  },[hasClock,serverTime]);
   const datePayment=useData<Row|null>('/payments/date-edit/'+enrollmentId,(modal==='certificateEdit'||returnedDateEdit)&&row?.certificate?.status==='issued',
     query=>['paid','refunded','failed','needs_review'].includes(query.state.data?.status??'')?false:5000);
   const pendingDateEdit=datePayment.data&&!['paid','refunded'].includes(datePayment.data.status)?datePayment.data:null;
@@ -113,33 +132,54 @@ export default function Track(){
     finally{setDateEditing(false);refresh();}
   }
   if(query.isPending)return <Loader/>;
-  if(query.error)return <Fault error={query.error} retry={query.refetch}/>;
+  if(query.error)return <div className="form-stack"><Fault error={query.error} retry={query.refetch}/><Link to="/student/internships">Back to Joined Internships</Link></div>;
   if(!row)return null;
   const approved=Boolean(row.approvedAt),offered=Boolean(row.offerLetterAccessedAt),tasks=Boolean(row.taskDocumentAccessedAt);
   const submission:Row|undefined=row.history?.[0];
   const paid=row.certificatePaymentStatus==='paid',cert=row.certificate?.status==='issued';
   const returnedPayment=returnedDateEdit?datePayment.data:row.payment;
   const returnedStatus=returnedPayment?._id===params.get('paymentId')?returnedPayment?.status:undefined;
-  const canSubmit=['Internship In Progress','Revision Required'].includes(row.internshipStatus);
+  const deadline=Date.parse(row.deadlineAt);
+  const expired=row.internshipStatus==='Expired'||(hasClock&&deadline<=now);
+  const reapplyUntil=row.reapplyUntil?Date.parse(row.reapplyUntil):deadline+3*dayMs;
+  const canSubmit=!expired&&['Internship In Progress','Revision Required'].includes(row.internshipStatus);
   const refunded=row.certificatePaymentStatus==='refunded';
   const canPay=row.internshipStatus==='Certificate Unlock Pending'&&!refunded;
   const draft=row.submissionDraft;
   const canPayForSubmission=Boolean(draft&&canSubmit&&!paid&&!refunded);
+  const paymentStatusButton=(submissionCheckout:boolean)=>row.payment?._id&&<Button variant="secondary" disabled={Boolean(busy)} busy={busy==='check'} onClick={()=>perform('check',async()=>{
+    const result=await request<Row>('/payments/'+row.payment._id+'/reconcile');
+    setStatus(result.status==='paid'?(submissionCheckout?'Payment verified. Your tasks have been submitted for admin review.':'Payment verified.'):'Payment status: '+result.status+'.');
+  })}>Check Payment Status</Button>;
   const checkoutControls=(submissionCheckout:boolean)=><>
     {settings.isPending&&<Loader text="Checking payment availability…"/>}{settings.error&&<Fault error={settings.error} retry={settings.refetch}/>}
     {settings.data&&<CertificateCheckout key={row._id} product="internship" referenceId={row._id}
       amount={row.payment?.amountInPaise??settings.data.fee} canPay={settings.data.paymentsConfigured}
       canApplyPromo={Boolean(settings.data.promoCodesEnabled)} disabled={Boolean(busy)||action.isPending} busy={busy==='payment'} onUnlock={pay} submission={submissionCheckout}/>}
-    {row.payment?._id&&<Button variant="secondary" disabled={Boolean(busy)} busy={busy==='check'} onClick={()=>perform('check',async()=>{
-      const result=await request<Row>('/payments/'+row.payment._id+'/reconcile');
-      setStatus(result.status==='paid'?(submissionCheckout?'Payment verified. Your tasks have been submitted for admin review.':'Payment verified.'):'Payment status: '+result.status+'.');
-    })}>Check Payment Status</Button>}
+    {paymentStatusButton(submissionCheckout)}
   </>;
   const idLink=new URL('/verify-certificate',siteUrl);idLink.searchParams.set('id',row.studentInternshipId);
   return <div className="track-page">
     <Link to="/student/internships">Joined Internships</Link>
     <PageHeading title={row.domainName}>{row.studentInternshipId} · {durationLabel(row)}</PageHeading>
-    <div className="track-summary panel"><Badge>{row.internshipStatus}</Badge><span>Joining date {day(row.startDate||row.applicationDate)}</span>{row.endDate&&<span>Internship end date {day(row.endDate)}</span>}</div>
+    {hasClock&&<section className="panel internship-deadline" aria-label="Internship deadline">
+      <h2><Clock3 size={19}/>{expired?'Internship expired':'Time left to submit tasks'}</h2>
+      {expired?(now<reapplyUntil?<>
+        <strong className="deadline-countdown" role="timer">{countdown(reapplyUntil-now)}</strong>
+        <p>Reapply by {dateTime.format(reapplyUntil)} IST to keep your progress and get another month. After that, your internship and saved work are removed.</p>
+        <div className="actions">
+          <Button busy={busy==='reapply'} disabled={Boolean(busy)} onClick={()=>perform('reapply',async()=>{
+            await request(base+'/reapply','POST',{});setModal(null);setStatus('Internship resumed. You have another month to submit.');
+          })}>Reapply</Button>
+          {!paid&&!refunded&&paymentStatusButton(true)}
+        </div>
+      </>:<p>The three-day reapplication window has closed.</p>):<>
+        <strong className="deadline-countdown" role="timer">{countdown(deadline-now)}</strong>
+        <p>Deadline {dateTime.format(deadline)} IST. Complete task submission and checkout before the deadline. Once your tasks are in admin review, you can wait for the decision.</p>
+        <p>If you miss the deadline, you have three days to reapply and keep your progress.</p>
+      </>}
+    </section>}
+    <div className="track-summary panel"><Badge>{expired?'Expired':row.internshipStatus}</Badge>{approved&&<span>Joining date {day(row.startDate)}</span>}{approved&&row.endDate&&<span>Internship document end date {day(row.endDate)}</span>}</div>
     {error!=null&&<Fault error={error}/>}
     {status&&<Status>{status}</Status>}
     {!status&&params.get('paymentReturn')==='payu'&&(
@@ -152,9 +192,9 @@ export default function Track(){
       <Step title="Application Submitted" state="done"><p>{day(row.applicationDate)} · {row.studentInternshipId}</p></Step>
       <Step title={row.applicationStatus==='rejected'?'Application Rejected':'Application Review'} state={row.applicationStatus==='pending'?'current':'done'}>{row.applicationStatus==='pending'?<p>Your application is being reviewed by the DInterns team.</p>:row.applicationStatus==='rejected'?<><p>{row.decisionReason}</p>{!row.active&&<Link className="btn secondary" to={'/internships?apply='+row.domainId}>Reapply</Link>}</>:<p>Application review completed.</p>}</Step>
       <Step title="Application Approved" state={approved?'done':'locked'}>{approved&&<p>Approved on {day(row.approvedAt)}.</p>}</Step>
-      <Step title="Accept Internship Rules" state={row.rulesAcceptedAt?'done':approved?'current':'locked'}>{approved&&(row.rulesAcceptedAt?<p>Accepted {day(row.rulesAcceptedAt)} · Version {row.rulesVersion}</p>:<Button onClick={()=>show('rules')}>Accept Internship Rules</Button>)}</Step>
-      <Step title="Download Offer Letter" state={offered?'done':row.rulesAcceptedAt?'current':'locked'}>{row.rulesAcceptedAt&&<div className="actions"><Button variant="secondary" disabled={Boolean(busy)} busy={busy==='offer-letter'} onClick={()=>document('offer-letter')}><Download size={17}/>Download Offer Letter</Button><Button variant="ghost" disabled={Boolean(busy)} busy={busy==='offer-letterpreview'} onClick={()=>document('offer-letter',true)}><Eye size={17}/>View PDF</Button></div>}</Step>
-      <Step title="Download Internship Tasks" state={tasks?'done':offered?'current':'locked'}>{offered&&<><p>{row.totalTasks} available · {row.minimumRequiredTasks} required · Document version {row.taskVersion}</p><Button variant="secondary" disabled={Boolean(busy)} busy={busy==='tasks'} onClick={()=>document('tasks')}><Download size={17}/>Download Internship Tasks</Button></>}</Step>
+      <Step title="Accept Internship Rules" state={row.rulesAcceptedAt?'done':approved&&!expired?'current':'locked'}>{approved&&(row.rulesAcceptedAt?<p>Accepted {day(row.rulesAcceptedAt)} · Version {row.rulesVersion}</p>:!expired&&<Button onClick={()=>show('rules')}>Accept Internship Rules</Button>)}</Step>
+      <Step title="Download Offer Letter" state={offered?'done':row.rulesAcceptedAt&&!expired?'current':'locked'}>{row.rulesAcceptedAt&&!expired&&<div className="actions"><Button variant="secondary" disabled={Boolean(busy)} busy={busy==='offer-letter'} onClick={()=>document('offer-letter')}><Download size={17}/>Download Offer Letter</Button><Button variant="ghost" disabled={Boolean(busy)} busy={busy==='offer-letterpreview'} onClick={()=>document('offer-letter',true)}><Eye size={17}/>View PDF</Button></div>}</Step>
+      <Step title="Download Internship Tasks" state={tasks?'done':offered&&!expired?'current':'locked'}>{offered&&!expired&&<><p>{row.totalTasks} available · {row.minimumRequiredTasks} required · Document version {row.taskVersion}</p><Button variant="secondary" disabled={Boolean(busy)} busy={busy==='tasks'} onClick={()=>document('tasks')}><Download size={17}/>Download Internship Tasks</Button></>}</Step>
       <Step title="Submit Completed Tasks" state={submission&&!canSubmit?'done':tasks&&canSubmit?'current':'locked'}>
         {tasks&&canSubmit&&!refunded&&<>
           <p>{paid?'Your existing payment covers this revision.':draft?'Your tasks are saved. Complete checkout to send them for admin review.':'Add your project links and pay the ₹99 submission fee to send your tasks for admin review. Promo codes can reduce the fee.'}</p>
@@ -193,10 +233,10 @@ export default function Track(){
       </Step>
       <Step title="Internship Completed" state={row.completedAt?'done':cert?'current':'locked'}>{row.completedAt&&<p>Congratulations! You have successfully completed your DInterns internship.</p>}</Step>
     </ol></section>
-    {modal==='rules'&&<Modal title="DInterns Internship Guidelines" close={()=>setModal(null)}><ol className="rules">{rules.map(rule=><li key={rule}>{rule}</li>)}</ol><p>Keep private contact details and sensitive information out of your posts. <Link to={'/student/support?new=1&enrollment='+row._id}>Ask support for an alternative</Link>.</p>
+    {modal==='rules'&&!expired&&<Modal title="DInterns Internship Guidelines" close={()=>setModal(null)}><ol className="rules">{rules.map(rule=><li key={rule}>{rule}</li>)}</ol><p>Keep private contact details and sensitive information out of your posts. <Link to={'/student/support?new=1&enrollment='+row._id}>Ask support for an alternative</Link>.</p>
       {settings.isPending&&<Loader text="Loading guidelines version…"/>}{settings.error&&<Fault error={settings.error} retry={settings.refetch}/>}
       <form className="form-stack" onSubmit={event=>{formData(event);action.mutate({path:base+'/accept-rules',body:{accepted:true,version:settings.data?.rulesVersion}},{onSuccess:saved});}}><label className="checkbox"><input type="checkbox" required/>I have read, understood and agree to all the internship guidelines.</label>{action.error&&<Fault error={action.error}/>}<Button type="submit" disabled={!settings.data} busy={action.isPending}>Submit &amp; Accept</Button></form></Modal>}
-    {modal==='submit'&&<Modal title="Submit Your Internship Projects" close={()=>setModal(null)}><form className="form-stack" onSubmit={event=>{
+    {modal==='submit'&&canSubmit&&<Modal title="Submit Your Internship Projects" close={()=>setModal(null)}><form className="form-stack" onSubmit={event=>{
       const form=formData(event),linkedin=value(form,'linkedin').trim();
       const taskLinks=Array.from({length:row.totalTasks},(_,index)=>value(form,'task'+index).trim()).filter(Boolean);
       if(taskLinks.length<row.minimumRequiredTasks){

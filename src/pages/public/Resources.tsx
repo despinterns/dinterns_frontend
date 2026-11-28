@@ -15,6 +15,7 @@ export const rules=[
   'Publish completed tasks somewhere the DInterns team can access, such as GitHub or GitHub Pages.',
   'If you use GitHub repositories, name them dinterns_taskname. For example, dinterns_calculator, dinterns_chatbot or dinterns_portfolio.',
   'Submit a distinct project link for each task through the internship dashboard.',
+  'You have one calendar month from application approval to send tasks for evaluation. If you miss the deadline, reapply within three days to keep your progress and get another month.',
   'Submit a link to your offer letter or the post where you shared it. LinkedIn short links are accepted.',
   'Submit genuine work you can explain.',
   'Plagiarised or fraudulent work may be rejected.',
